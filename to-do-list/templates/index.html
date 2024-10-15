@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>My To-Do List</h1>
+        
+        <!-- Task Summary Container -->
+        <div class="task-summary" id="task-summary">
+            <p><strong id="task-count">{{ completed_tasks }}/{{ total_tasks }}</strong> tasks completed</p>
+        </div>
+        
+        <form action="/add" method="POST">
+            <input type="text" name="content" placeholder="Enter a new task" required>
+            <button type="submit">+</button>
+        </form>
+
+        <ul>
+            {% for item in todo_items %}
+            <li>
+                <input type="checkbox" class="task-checkbox" {% if item.completed %} checked {% endif %} data-id="{{ item.id }}" onclick="toggleTask(event)">
+                <span class="task-content {% if item.completed %}completed{% endif %}">{{ item.content }}</span>
+                <a href="#" class="edit-link" onclick="editTask({{ item.id }}, '{{ item.content }}')"><i class="fas fa-edit"></i></a>
+                <a href="/delete/{{ item.id }}" class="delete-link"><i class="fas fa-trash"></i></a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        function updateTaskSummary(completed, total) {
+            const taskCount = document.getElementById('task-count');
+            taskCount.textContent = `${completed}/${total}`;
+        }
+
+        // Toggle task completion status
+        function toggleTask(event) {
+            const checkbox = event.target;
+            const taskId = checkbox.dataset.id;
+            const taskContent = checkbox.nextElementSibling;
+            const isCompleted = checkbox.checked;
+
+            if (isCompleted) {
+                taskContent.classList.add('completed');
+            } else {
+                taskContent.classList.remove('completed');
+            }
+
+            // Update the task on the server
+            fetch(`/toggle/${taskId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ completed: isCompleted }),
+            }).then(response => {
+                if (response.ok) {
+                    // Update the displayed counts
+                    const completedCount = document.querySelectorAll('.task-checkbox:checked').length;
+                    const totalCount = document.querySelectorAll('.task-checkbox').length;
+                    updateTaskSummary(completedCount, totalCount);
+                } else {
+                    console.error('Failed to update task');
+                }
+            });
+        }
+
+        function editTask(taskId, currentContent) {
+            const newContent = prompt('Edit your task:', currentContent);
+            if (newContent && newContent !== currentContent) {
+                fetch(`/edit/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: newContent }),
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        console.error('Failed to edit task');
+                    }
+                });
+            }
+        }
+
+        // Initialize task summary on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const completedCount = document.querySelectorAll('.task-checkbox:checked').length;
+            const totalCount = document.querySelectorAll('.task-checkbox').length;
+            updateTaskSummary(completedCount, totalCount);
+        });
+    </script>
+</body>
+</html>
